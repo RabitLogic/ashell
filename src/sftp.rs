@@ -24,6 +24,8 @@ use uuid::Uuid;
 use walkdir::WalkDir;
 use zip::read::ZipArchive;
 
+use rust_i18n::t;
+
 use crate::{
     config::{AuthMethod, Session},
     terminal::BackendEvent,
@@ -185,7 +187,7 @@ async fn run_sftp(
                 Err(err) => {
                     let _ = events.send(BackendEvent::SftpStatus {
                         tab_id: tab_id.clone(),
-                        text: format!("preview failed: {err:#}"),
+                        text: t!("preview_failed", err = format!("{err:#}")).into(),
                     });
                 }
             },
@@ -193,19 +195,19 @@ async fn run_sftp(
                 let base = base_name(&remote);
                 let _ = events.send(BackendEvent::SftpStatus {
                     tab_id: tab_id.clone(),
-                    text: format!("downloading {base}..."),
+                    text: t!("downloading_file", base = base).into(),
                 });
                 match download_path_impl(&handle, &sftp, &remote, Path::new(&local_dir)).await {
                     Ok(summary) => {
                         let _ = events.send(BackendEvent::SftpStatus {
                             tab_id: tab_id.clone(),
-                            text: summary,
+                            text: summary.into(),
                         });
                     }
                     Err(err) => {
                         let _ = events.send(BackendEvent::SftpStatus {
                             tab_id: tab_id.clone(),
-                            text: format!("download failed: {err:#}"),
+                            text: t!("download_failed", err = format!("{err:#}")).into(),
                         });
                     }
                 }
@@ -213,20 +215,20 @@ async fn run_sftp(
             SftpCommand::UploadPaths { locals, remote_dir } => {
                 let _ = events.send(BackendEvent::SftpStatus {
                     tab_id: tab_id.clone(),
-                    text: "uploading...".into(),
+                    text: t!("uploading").into(),
                 });
                 match upload_paths_impl(&sftp, &locals, &remote_dir).await {
                     Ok(summary) => {
                         let _ = events.send(BackendEvent::SftpStatus {
                             tab_id: tab_id.clone(),
-                            text: summary,
+                            text: summary.into(),
                         });
                         let _ = emit_entries(&events, &tab_id, &sftp, &remote_dir).await;
                     }
                     Err(err) => {
                         let _ = events.send(BackendEvent::SftpStatus {
                             tab_id: tab_id.clone(),
-                            text: format!("upload failed: {err:#}"),
+                            text: t!("upload_failed", err = format!("{err:#}")).into(),
                         });
                     }
                 }
@@ -543,12 +545,12 @@ async fn download_path_impl(
         ));
         let extracted_to =
             download_remote_directory_archive(handle, sftp, remote, &local_archive).await?;
-        return Ok(format!("downloaded folder to {}", extracted_to.display()));
+        return Ok(t!("downloaded_folder", path = extracted_to.display()).to_string());
     }
 
     let local_path = local_dir.join(base_name(remote));
     download_file_impl(sftp, remote, &local_path).await?;
-    Ok(format!("downloaded file to {}", local_path.display()))
+    Ok(t!("downloaded_file", path = local_path.display()).to_string())
 }
 
 #[allow(dead_code)]
@@ -660,11 +662,11 @@ async fn upload_paths_impl(
         }
     }
     let summary = match (file_count, folder_count) {
-        (1, 0) => "uploaded file".to_string(),
-        (0, 1) => "uploaded folder".to_string(),
-        (files, 0) => format!("uploaded {files} files"),
-        (0, folders) => format!("uploaded {folders} folders"),
-        (files, folders) => format!("uploaded {files} files and {folders} folders"),
+        (1, 0) => t!("uploaded_file").to_string(),
+        (0, 1) => t!("uploaded_folder").to_string(),
+        (files, 0) => t!("uploaded_n_files", files = files).to_string(),
+        (0, folders) => t!("uploaded_n_folders", folders = folders).to_string(),
+        (files, folders) => t!("uploaded_files_and_folders", files = files, folders = folders).to_string(),
     };
     Ok(summary)
 }
