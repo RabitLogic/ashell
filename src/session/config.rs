@@ -168,6 +168,16 @@ impl ConfigStore {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)
                 .with_context(|| format!("failed to create config dir {}", parent.display()))?;
+
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                if let Ok(mut perms) = fs::metadata(parent).map(|m| m.permissions()) {
+                    perms.set_mode(0o700);
+                    let _ = fs::set_permissions(parent, perms);
+                }
+            }
+
             let tmp_dir = parent.join("tmp");
             let _ = fs::remove_dir_all(&tmp_dir);
             let _ = fs::create_dir_all(&tmp_dir);
@@ -378,6 +388,17 @@ impl ConfigStore {
         }
         let raw = serde_json::to_string_pretty(&self.cache)?;
         fs::write(&self.path, raw)
-            .with_context(|| format!("failed to write {}", self.path.display()))
+            .with_context(|| format!("failed to write {}", self.path.display()))?;
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            if let Ok(mut perms) = fs::metadata(&self.path).map(|m| m.permissions()) {
+                perms.set_mode(0o600);
+                let _ = fs::set_permissions(&self.path, perms);
+            }
+        }
+
+        Ok(())
     }
 }
