@@ -115,16 +115,15 @@ async fn run_ssh(
         tab_id: tab_id.clone(),
     });
 
+    let mut exit_reason = "ssh session closed".to_string();
+
     loop {
         tokio::select! {
             command = commands.recv() => {
                 match command {
                     Some(BackendCommand::Input(bytes)) => {
                         if let Err(err) = channel.data(bytes.as_slice()).await {
-                            let _ = events.send(BackendEvent::Closed {
-                                tab_id: tab_id.clone(),
-                                reason: format!("ssh write error: {err}"),
-                            });
+                            exit_reason = format!("ssh write error: {err}");
                             break;
                         }
                     }
@@ -145,7 +144,13 @@ async fn run_ssh(
                             bytes: data.to_vec(),
                         });
                     }
-                    Some(ChannelMsg::Close) | None => break,
+                    Some(ChannelMsg::Close) => {
+                        break;
+                    }
+                    None => {
+                        exit_reason = "ssh connection lost (network drop)".to_string();
+                        break;
+                    }
                     _ => {}
                 }
             }
@@ -157,7 +162,7 @@ async fn run_ssh(
         .await;
     let _ = events.send(BackendEvent::Closed {
         tab_id,
-        reason: "ssh session closed".into(),
+        reason: exit_reason,
     });
     Ok(())
 }
