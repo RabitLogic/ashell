@@ -871,7 +871,7 @@ impl Ashell {
                 .h(px(560.))
                 .content({
                     let view = view.clone();
-                    move |content, _window, _cx| {
+                    move |content, _window, cx| {
                         use gpui_component::setting::{Settings, SettingPage, SettingGroup, SettingItem, SettingField};
                         use gpui::IntoElement;
                         let version = env!("CARGO_PKG_VERSION");
@@ -880,6 +880,7 @@ impl Ashell {
                         content.child(
                             Settings::new("settings")
                                 .sidebar_width(px(180.))
+                                .sidebar_style(div().bg(cx.theme().background).style())
                                 .page(
                                     SettingPage::new(t!("settings_general").to_string())
                                         .icon(IconName::Settings)

@@ -1470,7 +1470,15 @@ impl Ashell {
                                                         .h(px(32.))
                                                         .bg(dot_color),
                                                 )
-                                                .label(label)
+                                                .child(
+                                                    div()
+                                                        .when(ix == selected, |this| {
+                                                            this.font_weight(FontWeight::BOLD)
+                                                                .text_color(cx.theme().primary)
+                                                                .text_base()
+                                                        })
+                                                        .child(label),
+                                                )
                                                 .on_click(cx.listener(
                                                     move |this, _, window, cx| {
                                                         this.activate_group(
