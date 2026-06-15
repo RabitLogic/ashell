@@ -181,6 +181,10 @@ impl Ashell {
                             local_path
                         );
                         handle.download(remote_path, local_path);
+                        this.update(cx, |this, cx| {
+                            this.show_transfers_dialog = true;
+                            cx.notify();
+                        })?;
                     }
                 }
                 Ok(Err(err)) => {
@@ -221,6 +225,10 @@ impl Ashell {
                             remote_dir
                         );
                         handle.upload_paths(vec![local_path], remote_dir);
+                        this.update(cx, |this, cx| {
+                            this.show_transfers_dialog = true;
+                            cx.notify();
+                        })?;
                     }
                 }
                 Ok(Err(err)) => {
@@ -261,6 +269,10 @@ impl Ashell {
                             remote_dir
                         );
                         handle.upload_paths(vec![local_path], remote_dir);
+                        this.update(cx, |this, cx| {
+                            this.show_transfers_dialog = true;
+                            cx.notify();
+                        })?;
                     }
                 }
                 Ok(Err(err)) => {
@@ -350,6 +362,7 @@ impl Ashell {
                         if let Some(sftp_mut) = this.active_sftp_mut() {
                             sftp_mut.selected_entries.clear();
                         }
+                        this.show_transfers_dialog = true;
                         cx.notify();
                     });
                 }
@@ -359,7 +372,7 @@ impl Ashell {
         .detach();
     }
 
-    pub(crate) fn upload_sftp_files_batch(&mut self, paths: Vec<String>, _cx: &mut Context<Self>) {
+    pub(crate) fn upload_sftp_files_batch(&mut self, paths: Vec<String>, cx: &mut Context<Self>) {
         if paths.is_empty() {
             return;
         }
@@ -374,6 +387,8 @@ impl Ashell {
                     locals: paths,
                     remote_dir: sftp.current_path.clone(),
                 });
+                self.show_transfers_dialog = true;
+                cx.notify();
             }
         }
     }

@@ -292,6 +292,26 @@ pub(crate) struct SftpContextMenuState {
 }
 
 impl Ashell {
+    fn transfer_source_title(&self, tab_id: &str) -> String {
+        self.tabs
+            .iter()
+            .find(|tab| tab.id == tab_id)
+            .map(|tab| tab.title.clone())
+            .or_else(|| {
+                self.tab_groups
+                    .iter()
+                    .find(|group| group.id == tab_id)
+                    .map(|group| group.title.clone())
+            })
+            .or_else(|| {
+                self.tab_groups
+                    .iter()
+                    .find(|group| group.pane_root.contains(tab_id))
+                    .map(|group| group.title.clone())
+            })
+            .unwrap_or_else(|| "Unknown".to_string())
+    }
+
     pub(crate) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let host_input = cx.new(|cx| InputState::new(window, cx).placeholder(t!("host")));
         let session_name_input =
@@ -716,12 +736,7 @@ impl Ashell {
                     }
                 }
                 BackendEvent::TransferStarted { tab_id, info } => {
-                    let tab_title = self
-                        .tabs
-                        .iter()
-                        .find(|t| t.id == tab_id)
-                        .map(|t| t.title.clone())
-                        .unwrap_or_else(|| "Unknown".to_string());
+                    let tab_title = self.transfer_source_title(&tab_id);
                     self.transfers.insert(
                         0,
                         crate::terminal::Transfer {
