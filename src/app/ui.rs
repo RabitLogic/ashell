@@ -1858,8 +1858,7 @@ impl Ashell {
                     .children(children.iter().enumerate().flat_map(|(i, child)| {
                         let mut items: Vec<gpui::AnyElement> = Vec::new();
                         if i > 0 {
-                            let mut splitter_path = path.to_vec();
-                            splitter_path.push(i - 1); // path to the pane BEFORE this splitter
+                            let splitter_path = path.to_vec(); // path to the CONTAINER that has the ratio
                             items.push(
                                 div()
                                     .h(px(4.))
@@ -1908,15 +1907,14 @@ impl Ashell {
                 .size_full()
                 .children(children.iter().enumerate().flat_map(|(i, child)| {
                     let mut items: Vec<gpui::AnyElement> = Vec::new();
-                    if i > 0 {
-                        let mut splitter_path = path.to_vec();
-                        splitter_path.push(i - 1);
-                        items.push(
-                            div()
-                                .w(px(4.))
-                                .h_full()
-                                .flex_none()
-                                .cursor_col_resize()
+                        if i > 0 {
+                            let splitter_path = path.to_vec(); // path to the CONTAINER that has the ratio
+                            items.push(
+                                div()
+                                    .w(px(4.))
+                                    .h_full()
+                                    .flex_none()
+                                    .cursor_col_resize()
                                 .bg(cx.theme().border)
                                 .hover(|s| s.bg(cx.theme().accent))
                                 .on_mouse_down(
