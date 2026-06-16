@@ -269,74 +269,115 @@ fn bind_workspace_actions(cx: &mut App, config: &ConfigStore) {
 }
 
 impl KeybindingsPage {
-    pub fn render(view: &Entity<Ashell>, cx: &mut App) -> SettingGroup {
-        let mut group = SettingGroup::new();
+    pub fn render_groups(view: &Entity<Ashell>, cx: &mut App) -> Vec<SettingGroup> {
+        let groups = [
+            (
+                "settings_group_keybind_general",
+                vec!["OpenSettings", "OpenSession", "NewSsh"],
+            ),
+            (
+                "settings_group_keybind_zoom",
+                vec!["ToggleSidebar", "ToggleSftpZoom"],
+            ),
+            (
+                "settings_group_keybind_focus",
+                vec![
+                    "FocusPaneLeft",
+                    "FocusPaneRight",
+                    "FocusPaneUp",
+                    "FocusPaneDown",
+                ],
+            ),
+            (
+                "settings_group_keybind_panel",
+                vec![
+                    "SplitPaneLeft",
+                    "SplitPaneRight",
+                    "SplitPaneUp",
+                    "SplitPaneDown",
+                    "ClosePane",
+                ],
+            ),
+        ];
 
-        for action in WORKSPACE_ACTIONS {
-            let recording = view.read(cx).recording_action.as_deref() == Some(action.id);
-            let has_error = view
-                .read(cx)
-                .keybind_error
-                .as_ref()
-                .is_some_and(|(id, _)| id == action.id);
-            let error_msg = if has_error {
-                view.read(cx)
+        let mut result = Vec::new();
+
+        for (group_label, action_ids) in groups {
+            let mut group = SettingGroup::new().title(t!(group_label).to_string());
+
+            for action_id in action_ids {
+                let action = WORKSPACE_ACTIONS
+                    .iter()
+                    .find(|a| a.id == action_id)
+                    .expect("action exists");
+
+                let recording = view.read(cx).recording_action.as_deref() == Some(action.id);
+                let has_error = view
+                    .read(cx)
                     .keybind_error
                     .as_ref()
-                    .map(|(_, msg)| msg.clone())
-            } else {
-                None
-            };
+                    .is_some_and(|(id, _)| id == action.id);
+                let error_msg = if has_error {
+                    view.read(cx)
+                        .keybind_error
+                        .as_ref()
+                        .map(|(_, msg)| msg.clone())
+                } else {
+                    None
+                };
 
-            let keystroke = {
-                let config = &view.read(cx).config;
-                configured_keystroke(config, action.id).unwrap_or_default()
-            };
+                let keystroke = {
+                    let config = &view.read(cx).config;
+                    configured_keystroke(config, action.id).unwrap_or_default()
+                };
 
-            let btn_label = if recording {
-                t!("press_new_key").to_string()
-            } else if keystroke.is_empty() {
-                t!("none").to_string()
-            } else {
-                format_keystroke(&keystroke)
-            };
+                let btn_label = if recording {
+                    t!("press_new_key").to_string()
+                } else if keystroke.is_empty() {
+                    t!("none").to_string()
+                } else {
+                    format_keystroke(&keystroke)
+                };
 
-            let mut item = SettingItem::new(
-                t!(action.label_key).to_string(),
-                SettingField::render({
-                    let view = view.clone();
-                    let action_id = action.id.to_string();
-                    move |_, _window, _cx| {
-                        Button::new(gpui::SharedString::from(format!("keybind-{action_id}")))
-                            .label(btn_label.clone())
-                            .small()
-                            .when(recording, |this| this.primary())
-                            .when(has_error, |this| this.danger())
-                            .on_click({
-                                let view = view.clone();
-                                let action_id = action_id.clone();
-                                move |_event, window, cx| {
-                                    view.update(cx, |this, cx| {
-                                        // Clear any previous error when starting new recording
-                                        this.keybind_error = None;
-                                        this.recording_action = Some(action_id.clone());
-                                        this.focus_handle.focus(window, cx);
-                                        cx.notify();
-                                    });
-                                }
-                            })
-                            .into_any_element()
-                    }
-                }),
-            );
+                let mut item = SettingItem::new(
+                    t!(action.label_key).to_string(),
+                    SettingField::render({
+                        let view = view.clone();
+                        let action_id = action.id.to_string();
+                        move |_, _window, _cx| {
+                            Button::new(gpui::SharedString::from(format!("keybind-{action_id}")))
+                                .label(btn_label.clone())
+                                .small()
+                                .when(recording, |this| this.primary())
+                                .when(has_error, |this| this.danger())
+                                .on_click({
+                                    let view = view.clone();
+                                    let action_id = action_id.clone();
+                                    move |_event, window, cx| {
+                                        view.update(cx, |this, cx| {
+                                            // Clear any previous error when starting new recording
+                                            this.keybind_error = None;
+                                            this.recording_action = Some(action_id.clone());
+                                            this.focus_handle.focus(window, cx);
+                                            cx.notify();
+                                        });
+                                    }
+                                })
+                                .into_any_element()
+                        }
+                    }),
+                );
 
-            if let Some(msg) = error_msg {
-                item = item.description(msg);
+                if let Some(msg) = error_msg {
+                    item = item.description(msg);
+                }
+
+                group = group.item(item);
             }
 
-            group = group.item(item);
+            result.push(group);
         }
 
-        group
+        result
     }
 }

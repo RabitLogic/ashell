@@ -1541,11 +1541,15 @@ impl Ashell {
                                                 )
                                         )
                                 )
-                                .page(
-                                    SettingPage::new(t!("settings_key_bindings").to_string())
+                                .page({
+                                    let mut page = SettingPage::new(t!("settings_key_bindings").to_string())
                                         .icon(IconName::SquareTerminal)
-                                        .group(crate::app::keybinding_recorder::KeybindingsPage::render(&view, cx))
-                                )
+                                        .default_open(true);
+                                    for group in crate::app::keybinding_recorder::KeybindingsPage::render_groups(&view, cx) {
+                                        page = page.group(group);
+                                    }
+                                    page
+                                })
                                 .page(
                                     SettingPage::new(t!("settings_help").to_string())
                                         .icon(IconName::BookOpen)
