@@ -281,11 +281,23 @@ pub(crate) fn open_main_window(cx: &mut App) {
                         }
                     }
                     gpui::WindowBounds::Maximized(b) => {
+                        let mut restore_bounds = (b.origin.x.into(), b.origin.y.into(), b.size.width.into(), b.size.height.into());
+                        if let Some(existing_bounds) = config.window_bounds() {
+                            match existing_bounds {
+                                crate::session::config::SavedWindowBounds::Windowed { x, y, width, height } => {
+                                    restore_bounds = (*x, *y, *width, *height);
+                                }
+                                crate::session::config::SavedWindowBounds::Maximized { x, y, width, height } => {
+                                    restore_bounds = (*x, *y, *width, *height);
+                                }
+                                _ => {}
+                            }
+                        }
                         crate::session::config::SavedWindowBounds::Maximized {
-                            x: b.origin.x.into(),
-                            y: b.origin.y.into(),
-                            width: b.size.width.into(),
-                            height: b.size.height.into(),
+                            x: restore_bounds.0,
+                            y: restore_bounds.1,
+                            width: restore_bounds.2,
+                            height: restore_bounds.3,
                         }
                     }
                     gpui::WindowBounds::Windowed(b) => {
