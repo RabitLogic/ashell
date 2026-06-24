@@ -79,6 +79,17 @@ impl Ashell {
             return;
         }
 
+        if self.ssh_proxy_type != "none" {
+            let proxy_host = self.proxy_host_input.read(cx).value().trim().to_string();
+            let proxy_port_str = self.proxy_port_input.read(cx).value().trim().to_string();
+            let proxy_port = proxy_port_str.parse::<u16>().ok();
+            if proxy_host.is_empty() || proxy_port.is_none() {
+                self.status = "Proxy host and port are required".into();
+                cx.notify();
+                return;
+            }
+        }
+
         let name = if session_name.is_empty() {
             host.clone()
         } else {
@@ -107,6 +118,17 @@ impl Ashell {
             session.id = id;
         }
         session.last_used = existing_last_used;
+        session.proxy_type = self.ssh_proxy_type.clone();
+        session.proxy_host = self.proxy_host_input.read(cx).value().trim().to_string();
+        session.proxy_port = self
+            .proxy_port_input
+            .read(cx)
+            .value()
+            .trim()
+            .parse::<u16>()
+            .ok();
+        session.proxy_user = self.proxy_user_input.read(cx).value().trim().to_string();
+        session.proxy_password = self.proxy_password_input.read(cx).value().to_string();
         self.config.upsert(session.clone());
         if let Err(err) = self.config.save() {
             tracing::warn!("failed to save config: {err:#}");
@@ -139,6 +161,11 @@ impl Ashell {
         Self::set_input_value(&self.key_path_input, "", window, cx);
         Self::set_input_value(&self.key_inline_input, "", window, cx);
         Self::set_input_value(&self.passphrase_input, "", window, cx);
+        self.ssh_proxy_type = "none".to_string();
+        Self::set_input_value(&self.proxy_host_input, "", window, cx);
+        Self::set_input_value(&self.proxy_port_input, "", window, cx);
+        Self::set_input_value(&self.proxy_user_input, "", window, cx);
+        Self::set_input_value(&self.proxy_password_input, "", window, cx);
     }
 
     pub(crate) fn load_session_into_form(
@@ -172,6 +199,16 @@ impl Ashell {
             window,
             cx,
         );
+        self.ssh_proxy_type = session.proxy_type.clone();
+        Self::set_input_value(&self.proxy_host_input, session.proxy_host.clone(), window, cx);
+        Self::set_input_value(
+            &self.proxy_port_input,
+            session.proxy_port.map(|p| p.to_string()).unwrap_or_default(),
+            window,
+            cx,
+        );
+        Self::set_input_value(&self.proxy_user_input, session.proxy_user.clone(), window, cx);
+        Self::set_input_value(&self.proxy_password_input, session.proxy_password.clone(), window, cx);
     }
 
     pub(crate) fn pick_ssh_key_path(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -323,6 +360,11 @@ impl Ashell {
 
     pub(crate) fn set_ssh_auth_method(&mut self, method: AuthMethod, cx: &mut Context<Self>) {
         self.ssh_auth_method = method;
+        cx.notify();
+    }
+
+    pub(crate) fn set_ssh_proxy_type(&mut self, proxy_type: String, cx: &mut Context<Self>) {
+        self.ssh_proxy_type = proxy_type;
         cx.notify();
     }
 

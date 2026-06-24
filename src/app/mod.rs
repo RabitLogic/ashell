@@ -211,6 +211,16 @@ pub(crate) struct Ashell {
     pub(crate) key_path_input: Entity<InputState>,
     pub(crate) key_inline_input: Entity<InputState>,
     pub(crate) passphrase_input: Entity<InputState>,
+    pub(crate) ssh_proxy_type: String,
+    pub(crate) proxy_host_input: Entity<InputState>,
+    pub(crate) proxy_port_input: Entity<InputState>,
+    pub(crate) proxy_user_input: Entity<InputState>,
+    pub(crate) proxy_password_input: Entity<InputState>,
+    pub(crate) global_proxy_type: String,
+    pub(crate) global_proxy_host_input: Entity<InputState>,
+    pub(crate) global_proxy_port_input: Entity<InputState>,
+    pub(crate) global_proxy_user_input: Entity<InputState>,
+    pub(crate) global_proxy_password_input: Entity<InputState>,
     pub(crate) sync_endpoint_input: Entity<InputState>,
     pub(crate) sync_username_input: Entity<InputState>,
     pub(crate) sync_webdav_password_input: Entity<InputState>,
@@ -377,6 +387,10 @@ impl Ashell {
                 .placeholder("SSH private key passphrase (optional)")
                 .masked(true)
         });
+        let proxy_host_input = cx.new(|cx| InputState::new(window, cx).placeholder(t!("proxy_host").to_string()));
+        let proxy_port_input = cx.new(|cx| InputState::new(window, cx).placeholder(t!("proxy_port").to_string()));
+        let proxy_user_input = cx.new(|cx| InputState::new(window, cx).placeholder(t!("proxy_user").to_string()));
+        let proxy_password_input = cx.new(|cx| InputState::new(window, cx).placeholder(t!("proxy_password").to_string()).masked(true));
         let sftp_path_input = cx.new(|cx| InputState::new(window, cx).default_value("/"));
         let sftp_new_folder_input =
             cx.new(|cx| InputState::new(window, cx).placeholder(t!("new_folder").to_string()));
@@ -386,6 +400,27 @@ impl Ashell {
         let config = ConfigStore::load().unwrap_or_else(|err| {
             tracing::warn!("failed to load config: {err:#}");
             ConfigStore::in_memory()
+        });
+        let global_proxy_host_input = cx.new(|cx| {
+            InputState::new(window, cx)
+                .placeholder(t!("proxy_host").to_string())
+                .default_value(config.global_proxy_host())
+        });
+        let global_proxy_port_input = cx.new(|cx| {
+            InputState::new(window, cx)
+                .placeholder(t!("proxy_port").to_string())
+                .default_value(config.global_proxy_port().map(|p| p.to_string()).unwrap_or_default())
+        });
+        let global_proxy_user_input = cx.new(|cx| {
+            InputState::new(window, cx)
+                .placeholder(t!("proxy_user").to_string())
+                .default_value(config.global_proxy_user())
+        });
+        let global_proxy_password_input = cx.new(|cx| {
+            InputState::new(window, cx)
+                .placeholder(t!("proxy_password").to_string())
+                .masked(true)
+                .default_value(config.global_proxy_password())
         });
         let sync_endpoint_input = cx.new(|cx| {
             InputState::new(window, cx)
@@ -450,6 +485,10 @@ impl Ashell {
             cx.subscribe_in(&key_path_input, window, Self::on_input_event),
             cx.subscribe_in(&key_inline_input, window, Self::on_input_event),
             cx.subscribe_in(&passphrase_input, window, Self::on_input_event),
+            cx.subscribe_in(&proxy_host_input, window, Self::on_input_event),
+            cx.subscribe_in(&proxy_port_input, window, Self::on_input_event),
+            cx.subscribe_in(&proxy_user_input, window, Self::on_input_event),
+            cx.subscribe_in(&proxy_password_input, window, Self::on_input_event),
             cx.subscribe_in(&sftp_path_input, window, Self::on_input_event),
             cx.subscribe_in(&sftp_new_folder_input, window, Self::on_input_event),
             cx.subscribe_in(&search_input, window, Self::on_input_event),
@@ -524,6 +563,16 @@ impl Ashell {
             key_path_input,
             key_inline_input,
             passphrase_input,
+            ssh_proxy_type: "none".to_string(),
+            proxy_host_input,
+            proxy_port_input,
+            proxy_user_input,
+            proxy_password_input,
+            global_proxy_type: config.global_proxy_type().to_string(),
+            global_proxy_host_input,
+            global_proxy_port_input,
+            global_proxy_user_input,
+            global_proxy_password_input,
             sync_endpoint_input,
             sync_username_input,
             sync_webdav_password_input,

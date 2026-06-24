@@ -162,6 +162,12 @@ pub(crate) fn sync_macos_launch_environment() {
                 | "HOMEBREW_PREFIX"
                 | "HOMEBREW_CELLAR"
                 | "HOMEBREW_REPOSITORY"
+                | "HTTP_PROXY"
+                | "HTTPS_PROXY"
+                | "ALL_PROXY"
+                | "http_proxy"
+                | "https_proxy"
+                | "all_proxy"
         ) || key.starts_with("LC_");
 
         if should_import {
@@ -172,11 +178,55 @@ pub(crate) fn sync_macos_launch_environment() {
     }
 }
 
+fn read_proxy_from_env() -> Option<(String, String, Option<u16>, String, String)> {
+    let vars = ["ALL_PROXY", "all_proxy", "HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy"];
+    for var in vars {
+        if let Ok(val) = std::env::var(var) {
+            if val.is_empty() {
+                continue;
+            }
+            if let Ok(url) = reqwest::Url::parse(&val) {
+                let scheme = url.scheme();
+                let proxy_type = match scheme {
+                    "socks5" | "socks5h" => "socks5".to_string(),
+                    "http" | "https" => "http".to_string(),
+                    _ => "socks5".to_string(),
+                };
+                let host = url.host_str().unwrap_or("").to_string();
+                let port = url.port();
+                let user = url.username().to_string();
+                let password = url.password().unwrap_or("").to_string();
+                return Some((proxy_type, host, port, user, password));
+            }
+        }
+    }
+    None
+}
+
 #[cfg(not(target_os = "macos"))]
 pub(crate) fn sync_macos_launch_environment() {}
 
 pub(crate) fn open_main_window(cx: &mut App) {
     let config = ConfigStore::load().unwrap_or_else(|_| ConfigStore::in_memory());
+
+    let _ = crate::session::config::ENV_PROXY.get_or_init(|| {
+        read_proxy_from_env().map(|(proxy_type, host, port, user, password)| {
+            tracing::info!(
+                "[proxy] Loaded proxy configuration from environment: type={}, host={}, port={:?}, user={}",
+                proxy_type,
+                host,
+                port,
+                user
+            );
+            crate::session::config::EnvProxy {
+                proxy_type,
+                host,
+                port,
+                user,
+                pass: password,
+            }
+        })
+    });
 
     let mut window_options = WindowOptions::default();
 

@@ -827,7 +827,8 @@ async fn connect_and_authenticate(
         ..Default::default()
     });
     let addr = format!("{}:{}", session.host, session.port);
-    let mut handle = client::connect(config, addr.as_str(), SftpClientHandler)
+    let stream = crate::session::config::connect_proxy(session).await?;
+    let mut handle = client::connect_stream(config, stream, SftpClientHandler)
         .await
         .with_context(|| format!("connect {addr} failed"))?;
 
