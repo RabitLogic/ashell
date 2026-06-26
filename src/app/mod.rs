@@ -897,6 +897,13 @@ impl Ashell {
                     if is_stale {
                         continue;
                     }
+                    let is_graceful_exit =
+                        reason == "local shell closed" || reason == "ssh session closed";
+                    if is_graceful_exit {
+                        self.handle_tab_close(tab_id.clone());
+                        self.status = reason.into();
+                        continue;
+                    }
                     if let Some(tab) = self.tabs.iter_mut().find(|t| t.id == tab_id) {
                         tab.connected = false;
                         tab.status = reason.clone();
