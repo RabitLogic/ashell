@@ -2334,9 +2334,11 @@ impl Ashell {
                 let font_size = px(this.terminal_font_size);
                 let line_height = px(this.terminal_line_height());
                 let cell_width = px(this.terminal_cell_width());
+                let is_url_hovered = this.hovered_url.as_ref().map_or(false, |hu| hu.tab_id == *tab_id);
                 let mut el = div()
                     .size_full()
                     .overflow_hidden()
+                    .when(is_url_hovered, |d| d.cursor_pointer())
                     .on_mouse_down(
                         MouseButton::Left,
                         cx.listener(move |this, _, _, cx| {

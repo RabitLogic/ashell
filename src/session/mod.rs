@@ -898,6 +898,16 @@ impl Ashell {
             }
         }
         if event.button == MouseButton::Left {
+            if event.modifiers.platform {
+                if let Some((row, col, _side)) = self.terminal_grid_point_and_side(event.position) {
+                    if let Some(snapshot) = self.active_snapshot() {
+                        if let Some((url, _)) = crate::terminal::highlight::find_url_at_cell(&snapshot.cells, snapshot.rows, row, col) {
+                            let _ = open::that(&url);
+                            return;
+                        }
+                    }
+                }
+            }
             if self.config.right_click_copy_paste() {
                 if let Some(text) = self.active_terminal_selection_text() {
                     if !text.is_empty() {

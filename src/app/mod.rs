@@ -318,7 +318,16 @@ pub(crate) struct Ashell {
     pub(crate) events_tx: mpsc::Sender<BackendEvent>,
     pub(crate) last_window_size: Option<gpui::Size<Pixels>>,
     pub(crate) last_sidebar_width: Option<Pixels>,
+    pub(crate) hovered_url: Option<HoveredUrl>,
+    pub(crate) cmd_ctrl_pressed: bool,
     pub(crate) _subscriptions: Vec<gpui::Subscription>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct HoveredUrl {
+    pub(crate) url: String,
+    pub(crate) tab_id: String,
+    pub(crate) cells: Vec<(usize, usize)>,
 }
 
 #[derive(Clone)]
@@ -682,6 +691,8 @@ impl Ashell {
             events_tx,
             last_window_size: None,
             last_sidebar_width,
+            hovered_url: None,
+            cmd_ctrl_pressed: false,
             _subscriptions,
         };
 

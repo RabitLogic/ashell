@@ -23,6 +23,7 @@ impl Ashell {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        self.cmd_ctrl_pressed = event.keystroke.modifiers.platform;
         // If the search input is focused, skip terminal key processing
         // so the input can handle text entry, paste, etc. normally.
         if self
@@ -379,6 +380,30 @@ impl Ashell {
             }
             return;
         }
+
+        // Track URL hover
+        let mut hovered_url = None;
+        let cmd_ctrl_pressed = event.modifiers.platform;
+        if let Some((row, col, _side)) = self.terminal_grid_point_and_side(event.position) {
+            if let Some(snapshot) = self.active_snapshot() {
+                if let Some(active_id) = &self.active_tab {
+                    if let Some((url, url_cells)) = crate::terminal::highlight::find_url_at_cell(&snapshot.cells, snapshot.rows, row, col) {
+                        hovered_url = Some(crate::app::HoveredUrl {
+                            url,
+                            tab_id: active_id.clone(),
+                            cells: url_cells,
+                        });
+                    }
+                }
+            }
+        }
+        
+        if self.hovered_url != hovered_url || self.cmd_ctrl_pressed != cmd_ctrl_pressed {
+            self.hovered_url = hovered_url;
+            self.cmd_ctrl_pressed = cmd_ctrl_pressed;
+            cx.notify();
+        }
+
         if !self.terminal_selecting || event.pressed_button != Some(MouseButton::Left) {
             return;
         }
@@ -454,7 +479,7 @@ impl Ashell {
         cx.notify();
     }
 
-    fn terminal_grid_point_and_side(
+    pub(crate) fn terminal_grid_point_and_side(
         &self,
         position: Point<Pixels>,
     ) -> Option<(usize, usize, Side)> {

@@ -40,6 +40,26 @@ impl LayoutRect {
 }
 
 #[derive(Clone)]
+struct LayoutUnderline {
+    row: i32,
+    col: i32,
+    cells: usize,
+    color: Hsla,
+}
+
+impl LayoutUnderline {
+    fn paint(&self, origin: Point<Pixels>, metrics: TerminalMetrics, window: &mut Window) {
+        let thickness = px(1.0);
+        let position = point(
+            origin.x + metrics.cell_width * self.col as f32,
+            origin.y + metrics.line_height * (self.row as f32 + 1.0) - thickness,
+        );
+        let size = gpui::size(metrics.cell_width * self.cells as f32, thickness);
+        window.paint_quad(fill(Bounds::new(position, size), self.color));
+    }
+}
+
+#[derive(Clone)]
 struct BatchedTextRun {
     row: i32,
     col: i32,
@@ -143,6 +163,7 @@ pub struct PrepaintState {
     runs: Vec<BatchedTextRun>,
     custom_blocks: Vec<LayoutCustomBlock>,
     cursor: Option<CursorLayout>,
+    underlines: Vec<LayoutUnderline>,
 }
 
 #[derive(Clone)]
@@ -354,10 +375,14 @@ impl TerminalElement {
     fn layout_grid(
         &self,
         cx: &App,
-    ) -> (Vec<LayoutRect>, Vec<BatchedTextRun>, Vec<LayoutCustomBlock>) {
+    ) -> (Vec<LayoutRect>, Vec<BatchedTextRun>, Vec<LayoutCustomBlock>, Vec<LayoutUnderline>) {
+        let view_read = self.view.read(cx);
+        let hovered_url = view_read.hovered_url.clone();
+
         let mut rects = Vec::new();
         let mut runs = Vec::new();
         let mut custom_blocks = Vec::new();
+        let mut underlines = Vec::new();
         let mut current_run: Option<BatchedTextRun> = None;
 
         // Retrieve cached keyword highlights and merge with search highlights
@@ -409,6 +434,20 @@ impl TerminalElement {
             // Apply keyword highlight color if this cell was matched.
             if let Some(&hl_color) = highlights.get(&(render_cell.row, render_cell.col)) {
                 style.color = hl_color;
+            }
+
+            // Apply hover underline if mouse is hovering over this URL
+            if let Some(hu) = &hovered_url {
+                if hu.tab_id == self.tab_id
+                    && hu.cells.contains(&(render_cell.row as usize, render_cell.col as usize))
+                {
+                    underlines.push(LayoutUnderline {
+                        row: render_cell.row,
+                        col: render_cell.col,
+                        cells: if cell.flags.contains(Flags::WIDE_CHAR) { 2 } else { 1 },
+                        color: style.color,
+                    });
+                }
             }
 
             // Box Drawing & Block Elements interception
@@ -463,7 +502,12 @@ impl TerminalElement {
             runs.push(run);
         }
 
-        (merge_rects(rects), runs, custom_blocks)
+        (
+            merge_rects(rects),
+            runs,
+            custom_blocks,
+            merge_underlines(underlines),
+        )
     }
 
     fn cursor_layout(&self, cx: &App) -> Option<CursorLayout> {
@@ -543,7 +587,7 @@ impl Element for TerminalElement {
         cx: &mut App,
     ) -> Self::PrepaintState {
         let _ = self.base_text_style(cx);
-        let (rects, runs, custom_blocks) = self.layout_grid(cx);
+        let (rects, runs, custom_blocks, underlines) = self.layout_grid(cx);
 
         // Save the precise GPUI-rendered bounds of this terminal element.
         // This is 100% accurate because it is recorded during layout prepaint.
@@ -580,6 +624,7 @@ impl Element for TerminalElement {
             runs,
             custom_blocks,
             cursor: self.cursor_layout(cx),
+            underlines,
         }
     }
 
@@ -605,6 +650,10 @@ impl Element for TerminalElement {
 
         for run in &prepaint.runs {
             run.paint(draw_origin, prepaint.metrics, window, cx);
+        }
+
+        for u in &prepaint.underlines {
+            u.paint(draw_origin, prepaint.metrics, window);
         }
 
         for block in &prepaint.custom_blocks {
@@ -741,6 +790,26 @@ fn merge_rects(mut rects: Vec<LayoutRect>) -> Vec<LayoutRect> {
             }
         }
         merged.push(rect);
+    }
+
+    merged
+}
+
+fn merge_underlines(mut underlines: Vec<LayoutUnderline>) -> Vec<LayoutUnderline> {
+    underlines.sort_by_key(|u| (u.row, u.col));
+    let mut merged: Vec<LayoutUnderline> = Vec::with_capacity(underlines.len());
+
+    for u in underlines {
+        if let Some(last) = merged.last_mut() {
+            if last.row == u.row
+                && last.color == u.color
+                && last.col + last.cells as i32 == u.col
+            {
+                last.cells += u.cells;
+                continue;
+            }
+        }
+        merged.push(u);
     }
 
     merged
